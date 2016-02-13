@@ -1,0 +1,58 @@
+---
+
+- name: Install required packages
+  apt:
+    name: '{{ item }}'
+    state: 'present'
+    install_recommends: False
+  with_flattened:
+    - '{{ whereami_base_packages }}'
+  tags: [ 'role::whereami:install' ]
+
+- name: Create directory for additional scripts
+  file:
+    path: '/usr/local/share/whereami'
+    state: 'directory'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+  when: (whereami_install_additional_scripts|d([]))
+  tags: [ 'role::whereami:install' ]
+
+- name: Install additional scripts for whereami
+  copy:
+    src: 'usr/local/share/whereami/{{ item }}'
+    dest: '/usr/local/share/whereami/{{ item }}'
+    mode: '0754'
+    owner: 'root'
+    group: 'root'
+  with_flattened: '{{ whereami_install_additional_scripts }}'
+  tags: [ 'role::whereami:install' ]
+
+- name: Install patched whereami
+  copy:
+    src: 'usr/local/bin/whereami'
+    dest: '/usr/local/bin/whereami'
+    mode: '0755'
+    owner: 'root'
+    group: 'root'
+  when: whereami_install_patches
+  tags: [ 'role::whereami:install' ]
+
+- name: Configure detection rules
+  template:
+    src: 'etc/whereami/detect.conf.j2'
+    dest: '/etc/whereami/detect.conf'
+    mode: '{{ whereami_configuration_mode }}'
+    owner: 'root'
+    group: 'root'
+  tags: [ 'role::whereami:config' ]
+
+- name: Configure whereami actions
+  template:
+    src: 'etc/whereami/whereami.conf.j2'
+    dest: '/etc/whereami/whereami.conf'
+    mode: '{{ whereami_configuration_mode }}'
+    owner: 'root'
+    group: 'root'
+  tags: [ 'role::whereami:config' ]

@@ -1,0 +1,604 @@
+#!/usr/bin/perl
+#
+# $Id: whereami.pl,v 1.33 2007/02/25 18:53:11 andrew Exp $
+#
+# by Andrew McMillan, Catalyst IT Ltd, (c) 2001-2005 licensed
+# for use under the Gnu GPL version 2
+#
+
+use strict;
+use Getopt::Long qw(:config permute);  # allow mixed args.
+
+my $debug = 0;
+my $syslogging = 0;
+my $doactions = 1;
+my $mapping = 0;
+my $locking = 1;
+my $scriptdebugging = 0;
+my $helpmeplease = 0;
+my $basedir = "/etc/whereami";
+my $lockdir = "/var/run";
+my $statedir = "/var/lib/whereami";
+my $scriptbase = "/usr/share/whereami";
+my $caller   = "";
+my $run_from = "";
+my $default = "none";
+my $last_locations = "";
+my $now_locations = "";
+my $hint_locations = "";
+my %whereiam;
+my %whereiwas;
+my $locn_seq = 1;  # Can't think why, but sorting might become important
+
+sub handle_location_specs {
+  # Note global variable...
+  $now_locations .= "," if ( $now_locations );
+  $now_locations .= $_[0] ;
+}
+
+GetOptions ('debug!'       => \$debug,
+            'syslog!'      => \$syslogging,
+            'actions!'     => \$doactions,
+            'mapping'      => \$mapping,
+            'locking!'     => \$locking,
+            'scriptdebug!' => \$scriptdebugging,
+            'basedir=s'    => \$basedir,
+            'statedir=s'   => \$statedir,
+            'scriptbase=s' => \$scriptbase,       # Deliberately undocumented!
+            'from=s'       => \$last_locations,
+            'run_from=s'   => \$caller,
+            'hint=s'       => \$hint_locations,
+            'help'         => \$helpmeplease,
+            '<>'           => \&handle_location_specs
+           );
+
+show_usage() if ( $helpmeplease );
+
+if ( $syslogging ) {
+  use Sys::Syslog;
+  openlog( 'whereami', 'pid', 'user');
+}
+
+my $LOCKFILENAME = "$lockdir/whereami.started";
+if ( $locking && ! create_process_lock() ) {
+  syslog "warning", "It seems that another whereami is already running.  Exiting to avoid conflict." if ( $syslogging );
+  print "whereami is already running - I shall exit.\n" if ( $debug || $scriptdebugging );
+  exit 0;
+}
+
+if ( $mapping ) {
+  $doactions = 0;
+}
+
+print "BaseDir: $basedir\n" if ( $debug );
+# Set a bunch of important environment for scripts to use
+$ENV{'BASEDIR'} =$basedir;
+$ENV{'STATEDIR'} =$statedir;
+$ENV{'LOCKDIR'} =$lockdir;
+$ENV{'PATH'} = "$scriptbase/tests:$scriptbase/actions:$scriptbase:/bin:/usr/bin:/sbin:/usr/sbin:$basedir/tests:/usr/local/share/whereami";
+$ENV{'DEBUGWHEREAMI'} = "1" if ( $debug || $scriptdebugging );
+
+
+if ( "" eq "$last_locations" ) {
+  # Read where we last were from where we wrote it last time
+  open ( LASTLOCN, "< $statedir/iam" ) && do {
+    while ( <LASTLOCN> ) {
+      chomp;
+      $whereiwas{$_} = 1;
+    }
+    close LASTLOCN;
+  };
+  $last_locations = join(q{,}, sort keys %whereiwas);
+}
+
+print "Last: $last_locations\n" if ( $debug );
+
+if ( "" eq "$now_locations" ) {
+  if ( "" ne "$hint_locations" ) {
+    # Add any hint locations into the starting mix
+    foreach( split( /[,]+/, $hint_locations ) ) {
+      printf ( "*hint**location: %s\n", $_) if ( $debug );
+      $whereiam{$_} = $locn_seq++;
+    }
+  }
+
+  # Actually do the detection.
+  detect_location( "$basedir/detect.conf" );
+
+}
+else {
+  # Then we just are wherever we were told on the command line.
+  foreach( split( /[,]+/, $now_locations ) ) {
+    printf ( "*******location: %s\n", $_) if ( $debug );
+    $whereiam{$_} = $locn_seq++;
+  }
+}
+
+
+save_locations() if ( $now_locations ne $last_locations );
+
+$whereiam{'any'} = 0;    # We are always in the 'any' location.
+
+if ( $doactions ) {
+
+  # Create a script for all of those locations
+  process_location("$basedir/whereami.conf", "$statedir/whereiam.sh");
+
+  if ( $debug ) {
+    # Show it to us
+    open( SCRIPTFILE, "< $statedir/whereiam.sh" ) or die_cleanly( "Can't read script file");
+    while( <SCRIPTFILE> ) { print; }
+    close SCRIPTFILE;
+  }
+
+  # Run the script we have constructed
+  chmod 0755, "$statedir/whereiam.sh";
+  system( "sh", "-c", "$statedir/whereiam.sh" );
+
+}
+elsif ( $mapping) {
+  # Print a list of mappings for ifupdown's mapping mechanism
+  print "$now_locations\n";
+}
+else {
+  # Just enumerate what we would otherwise do, for debugging
+  while( my ($k, $v) = each ( %whereiam ) ) {
+    print "$k\n";
+  }
+}
+
+# Delete our locking file / timestamp
+exit_cleanly(0);
+
+# We should never reach here.
+exit 255;
+
+
+############################################################
+# Miscellaneous routines
+############################################################
+
+############################################################
+# We should call this, rather than exit, after we have
+# created our process lock
+############################################################
+sub exit_cleanly
+{
+my $exit_code = shift;
+   remove_process_lock();
+  closelog if ( $syslogging);
+  exit $exit_code;
+}
+
+############################################################
+# We should call this, rather than die, after we have created
+# our process lock.
+############################################################
+sub die_cleanly
+{
+  # If die-ing is clean in the first place...
+  print STDERR @_, "\n";
+  exit_cleanly(1);
+}
+
+############################################################
+# Tell the nice user how we do things.  Short and sweet.
+############################################################
+sub show_usage {
+    print <<OPTHELP;
+
+whereami [options] [location]
+
+Options are:
+    --debug       Turn on debugging
+    --scriptdebug Turn on debugging in all test scripts, but run normally
+    --noactions   Don't actually do anything
+    --mapping     Just perform detection for ifupdown integration
+    --nolocking   Allow multiple copies to run concurrently
+    --basedir     Specify a different directory for the configuration files
+    --statedir    Specify a different directory for the state files
+    --from        Specify the location we are moving from
+    --run_from    Indicate what program is calling us now
+    --hint        Suggest a set of starting locations
+    --syslog      Log actions to syslog
+
+Whereami will detect the location your computer is currently in, according to
+/etc/whereami/detect.conf, and then flexibly reconfigure everything through
+a script configured in /etc/whereami/whereami.conf.
+
+Please refer to the manpages for whereami, whereami.conf and detect.conf for
+full documentation.
+
+OPTHELP
+    exit 0;
+}
+
+
+############################################################
+# Try and create the lock file for the process, break it if
+# it appears to be for a no-longer running process.
+############################################################
+sub create_process_lock
+{
+
+  # We avoid race conditions here by creating the file and 'link'ing it
+  # into place.  If that failed we examine the existing lock for validity,
+  # remove it if stale and make a second attempt to link our file in.
+
+  open( LOCKFILEOUT, "> $LOCKFILENAME.$$" ) or die "Can't write PID file to $LOCKFILENAME.$$";
+  print LOCKFILEOUT "$$";
+  close LOCKFILEOUT;
+
+  if ( ! link( "$LOCKFILENAME.$$", "$LOCKFILENAME" ) ) {
+
+    # Read the PID from the existing lockfile.
+    open( LOCKFILEIN, "< $LOCKFILENAME") or die "Can't open existing lock file $LOCKFILENAME for checking";
+    my $oldpid = <LOCKFILEIN>;
+    close LOCKFILEIN;
+
+    if ( -d "/proc/$oldpid" ) {
+      # Process still running so no lock.  Of course this is not a _guarantee_
+      # (another process might have that PID now) but at least it errs in the
+      # conservative direction
+      warn "create_process_lock(): another process ($oldpid) is running.\n" if ( $debug );
+      unlink( "$LOCKFILENAME.$$" );
+      return 0;
+    }
+
+    # OK, so try and remove the lock...
+    unlink( "$LOCKFILENAME" ) or do {
+      warn "failed to remove stale lockfile (PID $oldpid). Help!\n" if ( $debug );
+      unlink( "$LOCKFILENAME.$$" );
+      return 0;
+    };
+    warn "create_process_lock(): removed stale lockfile from PID $oldpid.\n" if ( $debug );
+
+    # Now attempt to put _our_ lock in there.
+    if ( ! link( "$LOCKFILENAME.$$", "$LOCKFILENAME" ) ) {
+      warn "failed to acquire lock after removing stale lock.\n" if ( $debug );
+      unlink( "$LOCKFILENAME.$$" );
+      return 0;
+    }
+    warn "successfully acquired lock\n" if ( $debug );
+  }
+
+  # And so now we can unlink the other directory entry
+  unlink( "$LOCKFILENAME.$$" );
+  return 1;
+}
+
+
+
+############################################################
+# Remove the lock file when we have finished processing
+############################################################
+sub remove_process_lock
+{
+  if ( -f $LOCKFILENAME ) {
+    # Check that the lock PID matches our PID
+    open LOCKFILE, "< $LOCKFILENAME";
+    my $oldpid = <LOCKFILE>;
+    close LOCKFILE;
+    if ( "$$" ne "$oldpid" ) {
+      warn "Lock not removed as it doesn't match our PID!\n";
+      syslog( "warning", "Lock not removed as it doesn't match our PID!\n") if ( $syslogging );
+      return;
+    }
+    unlink $LOCKFILENAME;
+  }
+  else {
+    warn "Hmmmm...  Strange.  Our lockfile is missing!\n";
+    syslog( "warning", "Hmmmm...  Strange.  Our lockfile is missing!\n") if ( $syslogging );
+  }
+}
+
+
+############################################################
+# Save the location we have found for next time.
+############################################################
+sub save_locations {
+
+  # Rotate saved 'where we were' files.
+  for ( my $i=5; $i >= 0; $i-- ) {
+    rename "$statedir/iwas.$i", "$statedir/iwas." . ($i + 1);
+  }
+  rename "$statedir/iwas", "$statedir/iwas.0";
+  rename "$statedir/iam", "$statedir/iwas";
+
+  # Write file of these locations for next time...
+  open ( LASTLOCN, "> $statedir/iam" ) && do {
+    while( my ($k, $v) = each( %whereiam ) ) {
+      print LASTLOCN "$k\n";
+    }
+    close LASTLOCN;
+  };
+}
+
+#############################################################
+## remove quotes from the parameter variable
+#############################################################
+sub remove_quotes {
+  my $in = shift;
+
+  $in =~ /^(['"])(.*)['"]$/ && do {
+    $in =~ /^[$1](.*)[$1]$/ && do { return $1; };
+  };
+  return $in;
+}
+
+############################################################
+# Try and figure out where we actually are
+############################################################
+sub detect_location {
+my ( $confname ) = @_;
+
+  open( DETECT, "< $confname" ) or die_cleanly( "Can't open detect configuration file: $confname");
+  my $state = "looking";
+  my $startstate = "looking";
+  my $dhcp = "";
+  my $lno=0;
+  my @splitup;
+  my $testname;
+  my $params;
+  my $locations;
+
+  print "Line State     : Script\n" if ( $debug );
+  print "---- ----------:----------------------------------------------------\n" if ( $debug );
+
+  syslog "debug", "Line State     : Script\n" if ( $syslogging );
+  syslog "debug", "---- ----------:----------------------------------------------------\n" if ( $syslogging );
+
+  while( <DETECT> ) {
+    $lno++;
+    chomp;
+    next if ( /^\s*#/ );
+    next if ( /^\s*$/ );
+    $startstate = $state;
+
+    # Trim leading blanks
+    s/^\s+//;
+
+    /^echo\s+(\S.*)$/i && do {
+      # Inform the nice user :-)
+      print remove_quotes($1), "\n";
+      next;
+    };
+
+    /^else/i && do {
+      # Note the test for 'success', in case the 'if' clause was successful. That
+      # would imply that 'if' was true before that, and that we should still skip
+      # the else clause contents...
+      if ( $state =~ /^(if)|(success)|(!else)/ ) {
+        $state = "!else";
+      }
+      elsif ( $state eq "!if" ) {
+        $state = "else";
+      }
+      else {
+        die_cleanly "$confname ($lno): 'else' without prior 'if'";
+      }
+      next;
+    };
+
+    # Deal to a 'fi ...' line
+    /^fi/i && do {
+      if ( $state =~ /^!?(if)|(else)|(success)/ ) {
+        $state = "looking";
+      }
+      else {
+        die_cleanly "$confname ($lno): 'fi' without prior 'if' or 'else'";
+      }
+      next;
+    };
+
+    # Deal to an 'if location[,...]' line
+    /^if\s+(\S.*)$/i && do {
+      if ( $state =~ /^!?(if)|(else)/ ) {
+        die_cleanly "$confname ($lno): 'if' may not be nested at this time";
+      }
+      $state = "!if";
+      foreach( split( /[,]+/ , $1) ) {
+        if ( exists( $whereiam{$_} ) ) {
+          $state = "if";
+          last;
+        }
+      }
+      next;
+    };
+
+    # Deal to an 'elif location[,...]' line
+    /^elif\s+(\S.*)$/i && do {
+      if ( $state =~ /^(if)|(success)|(!else)/ ) {
+        # If any 'if' has been successful then we skip everything
+        $state = "!else";
+        next;
+      }
+      $state = "!if";
+      foreach( split( /[,]/ , $1) ) {
+        if ( exists( $whereiam{$_} ) ) {
+          $state = "if";
+          last;
+        }
+      }
+      next;
+    };
+
+    # So we just go to the next line if we are inside a non-processing chunk
+    next if ( $state =~ /^[\!#]/ );
+    # Skip to the next if we have been successful and we don't always do this.
+    next if ( $state =~ /^success/ && $_ !~ /^always/i );
+
+    # Shouldn't really have any whitespace lines here, but ignore anyway
+    next if ( /^\s*$/ );
+    # Skip to the next if this is a comment
+    next if ( /^\s*#/ );
+
+    printf ( "%#4d %-10.10s %s\n", $lno, $state, $_) if ( $debug );
+    syslog ( "debug",  "%#4d %-10.10s: %s\n", $lno, $state, $_ ) if ( $syslogging );
+
+    # Strip the always, if it is there.
+    s/^always\s+//i;
+
+    # Now using a more complex process to split the line, so that we
+    # can handle spaces, quoting and commas inside the parameters.
+    s/^(\S+)\s*// && do { $testname = $1; };
+    s/\s*([[:alnum:].,_-]+)$// && do { $locations = $1; };
+    $params = $_;
+
+    printf( "testname[%s] parameters[%s], locations[%s]\n",
+                $testname, $params, $locations ) if($debug);
+
+    # get rid of quote characters in params.
+    # this is a bit tricky...
+    $params = remove_quotes($params);
+    printf("unquoted parameters: [%s]\n",$params) if($debug);
+
+    # In future we might implement some of the commoner tests directly
+    # in here.  Especially DHCP, where we can do one pass to resolve
+    # all possibilities...
+    # For now we will run a script for each test we want to be available
+    # which makes things more easily extensible, especially by end users.
+    # The script needs to take one parameter, and give a zero exit
+    # result on success.
+    if ( $testname =~ /^set$/i ) {
+      # The "set name value" syntax doesn't change the processing state
+      $ENV{$params} = $locations;
+    }
+    elsif ( $testname =~ /^default$/i ) {
+      # The "default name" syntax doesn't change the processing state
+      $default = $locations;
+    }
+    elsif ( $testname =~ /^at$/i ) {
+      # Force a location
+      $state = "success";
+      printf ( "****************> Internal 'at' - adding locations: %s\n", $locations) if ( $debug );
+      syslog ( "notice", "****************> Internal 'at' - adding locations: %s\n", $locations) if ( $syslogging );
+
+      foreach( split( /[,]+/, $locations ) ) {
+        printf ( "*******location: %s\n", $_) if ( $debug );
+        $whereiam{$_} = $locn_seq++;
+      }
+    }
+    elsif ( $testname =~ /^notat$/i ) {
+      # Force removal of a location
+      $state = "success";
+      printf ( "****************> Internal 'notat' - removing locations: %s\n", $locations) if ( $debug );
+      syslog ( "notice", "****************> Internal 'notat' - removing locations: %s\n", $locations) if ( $syslogging );
+
+      foreach( split( /[,]+/, $locations ) ) {
+        next if ( ! defined $whereiam{$_} );
+        printf ( "******* not at : %s\n", $_) if ( $debug );
+        delete $whereiam{$_};
+      }
+    }
+    elsif ( 0 == system( $testname, $params ) ) {
+      $state = "success";
+      printf ( "****************> Test successful - adding locations: %s\n", $locations) if ( $debug );
+      syslog ( "notice", "****************> Test successful - adding locations: %s\n", $locations) if ( $syslogging );
+
+      foreach( split( /[,]+/, $locations ) ) {
+        printf ( "*******location: %s\n", $_) if ( $debug );
+        $whereiam{$_} = $locn_seq++;
+      }
+    }
+  }
+
+  $now_locations = join(q{,}, sort keys %whereiam);
+  if ( "$now_locations" eq "" ) {
+    $now_locations = $default;
+    $whereiam{$default} = $locn_seq++;
+  }
+}
+
+
+
+############################################################
+# Process the locations we have found to apply.
+############################################################
+sub process_location {
+my ( $confname, $scriptname ) = @_;
+
+  my ($k, $v);
+  my ( $condition, $script_line );
+  my $found;
+
+  open ( WHEREIAM, "> $scriptname" ) or die_cleanly( "Can't open \"$scriptname\" for output: ");
+  open ( LOCN_CONFIG, "< $confname" ) or die_cleanly( "Can't open \"$confname\" for input: ");
+  printf ( WHEREIAM "#!/bin/sh\n[ \"\$DEBUGWHEREAMI\" = \"1\" ] && set -o xtrace\nLASTLOCN=%s; export LASTLOCN\nLOCATION=%s; export LOCATION\n\n", $last_locations, $now_locations );
+  my $start_with = "+";
+  if ( $now_locations eq $last_locations ) {
+    printf( "Continuing at %s\n", $now_locations);
+    syslog( "notice", "Continuing at %s\n", $now_locations) if ( $syslogging ) ;
+    $start_with = "="
+  }
+  else {
+    printf( "Moving from %s to %s\n", $last_locations, $now_locations);
+    syslog ( "notice", "Moving from %s to %s", $last_locations, $now_locations ) if ( $syslogging );
+  }
+  while ( <LOCN_CONFIG> ) {
+    /^\s*$/ && next;
+    /^\s*#/ && next;
+    s/^\s+//;
+    ($condition, $script_line) = split( /\s+/, $_, 2);
+    if ( $start_with eq "=" ) {
+      if ( $condition =~ /^=/ ) {
+        $found = 0;
+        while( ($k, $v) = each( %whereiam ) ) {
+          next if ( $found );
+          $condition  =~ /=$k$/ && do {
+            print "=>$condition<=|=>$k<|>$script_line" if ( $debug );
+            print WHEREIAM "$script_line";
+            syslog( "debug", "$condition $script_line") if ( $syslogging );
+            $found = 1;
+          };
+        }
+      }
+      elsif ( $condition =~ /^!/ ) {
+        my $not_locn = substr( $condition, 1);
+        if ( ! exists( $whereiam{$not_locn} ) ) {
+          print WHEREIAM "$script_line";
+          print "=>$condition<=|=>$k<|>$script_line" if ( $debug );
+          syslog( "debug", "$condition $script_line") if ( $syslogging );
+        }
+      }
+    }
+    else {
+      if ( $condition =~ /^-/ ) {
+        $found = 0;
+        while( ($k, $v) = each( %whereiwas ) ) {
+          next if ( $found );
+          $condition =~ /-$k$/ && do {
+            print "->$condition<-|->$k<|>$script_line" if ( $debug );
+            print WHEREIAM "$script_line";
+            syslog( "debug", "$condition $script_line") if ( $syslogging );
+            $found = 1;
+          } unless ( exists $whereiam{$k} );
+        }
+      }
+      elsif ( $condition =~ /^[+=]/ ) {
+        $found = 0;
+        while( ($k, $v) = each( %whereiam ) ) {
+          next if ( $found );
+          $condition =~ /[+=]$k$/ && do {
+            print "+>$condition<+|+>$k<|>$script_line" if ( $debug );
+            print WHEREIAM "$script_line";
+            syslog( "debug", "$condition $script_line") if ( $syslogging );
+            $found = 1;
+          } unless ( exists $whereiwas{$k} && $condition =~ /^[+]/ );
+        }
+      }
+      elsif ( $condition =~ /^!/ ) {
+        my $not_locn = substr( $condition, 1);
+        if ( ! exists( $whereiam{$not_locn} ) ) {
+          print WHEREIAM "$script_line";
+          print "=>$condition<=|=>$k<|>$script_line" if ( $debug );
+          syslog( "debug", "$condition $script_line") if ( $syslogging );
+        }
+      }
+    }
+  }
+  close WHEREIAM;
+  close LOCN_CONFIG;
+}
+
+

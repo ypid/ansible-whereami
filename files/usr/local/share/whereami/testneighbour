@@ -1,0 +1,55 @@
+#!/bin/bash
+## @license AGPLv3 <https://www.gnu.org/licenses/agpl-3.0.html>
+## @author Copyright (C) 2015 Robin Schneider <ypid@riseup.net>
+##
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU Affero General Public License as
+## published by the Free Software Foundation, version 3 of the
+## License.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU Affero General Public License for more details.
+##
+## You should have received a copy of the GNU Affero General Public License
+## along with this program.  If not, see <https://www.gnu.org/licenses/>.
+##
+## Test for known hosts in the neighbour table of the kernel.
+##
+## Usage example ./testneighbour 'wlan0,192\.0\.2\.5 lladdr 64:80:99:26:26:16'
+
+# Turn on execution tracing, for debugging...
+[ "$DEBUGWHEREAMI" = "1" ] && set -o xtrace
+
+case "$1" in
+    *,*)
+        IFACE="${1/,*}"
+        SEARCH_PATTERN="${1/*,}"
+        ;;
+    *)
+        SEARCH_PATTERN="${1}"
+        ;;
+esac
+
+if [ -z "$IFACE" ]
+then
+    # We can also set $INTERFACE externally and that will be used as the default.
+    INTERFACE="${INTERFACE:-"eth0"}"
+else
+    INTERFACE="${IFACE}"
+fi
+if [ "$INTERFACE" == 'all' ]
+then
+    INTERFACE=''
+fi
+
+## Would there be any case where this would be needed?
+# if [ -n "$TESTNEIGHBOUR_SLEEP" ]
+# then
+#     sleep "$TESTNEIGHBOUR_SLEEP"
+# fi
+
+ip neighbour show dev $INTERFACE | grep --quiet --perl-regexp "$SEARCH_PATTERN" && exit 0
+
+exit 1

@@ -1,0 +1,214 @@
+---
+# Default variables
+# =================
+
+# .. contents:: Sections
+#    :local:
+#
+# ------------------------
+#   Installation options
+# ------------------------
+
+# .. envvar:: whereami_base_packages
+#
+# List of base packages to install.
+whereami_base_packages:
+  - 'whereami'
+
+
+# .. envvar:: whereami_install_additional_scripts
+#
+# List of additional scripts and tests for whereami to install. Those scripts
+# come with this role as they have not yet reached upstream or did not yet have
+# enough time to flow downstream).
+#
+# Choices:
+#
+# ``testip``
+#   Test if a certain network interface has been assigned a certain network
+#   address or other flags using regular expressions on the output of the
+#   ``ip`` command.
+#
+# ``testnm``
+#   Test against information network-manager can provide.
+#
+# ``testneighbour``
+#   Test for known hosts in the neighbour table of the kernel.
+#
+whereami_install_additional_scripts:
+  - 'testip'
+  - 'testnm'
+  - 'testneighbour'
+
+
+# .. envvar:: whereami_install_patches
+#
+# Install a bug fixed version of ``whereami`` instead of the upstream version.
+#
+# Fixed:
+#
+#   * Sort locations to not report a location change only because the order has changed.
+#
+whereami_install_patches: False
+
+
+# -----------------
+#   Configuration
+# -----------------
+
+# .. envvar:: whereami_configuration_mode
+#
+# UNIX permissions for configuration files.
+whereami_configuration_mode: '0644'
+
+
+# .. envvar:: whereami_location_detection_rules
+#
+# The detection configuration for ``whereami``.
+#
+# This file describes unique features of various environments you connect
+# to and associates them with those locations.
+#
+# When a test is successful, no further tests will be conducted
+# until a subsequent 'if' or 'fi' statement, or if the line is preceded
+# by the word 'always'.
+#
+# You may also set environment variables for the scripts (test and action)
+# subsequently called by whereami using "set <varname> <value>".
+#
+# See :manpage:`detect.conf(5)` for lots more information, especially for the
+# details of the helper scripts used here.
+whereami_location_detection_rules: |
+  # It is a good idea to default to somewhere...
+  default undocked
+
+  testip eth0,LOWER_UP  lan
+  testip wlan0,LOWER_UP wlan
+
+  # Uncomment this for exhaustive debugging output
+  # set DEBUGWHEREAMI 1
+
+  # 'down' might be a location that is forced from the command line
+  # like "whereami down"
+  if down
+    always at undocked
+    always notat eth0,wlan0
+  fi
+
+  if lan
+    testip 'eth0,inet 192\.0\.2\.\d+/24'    location1,location1-lan
+    testip 'eth0,inet 198\.51\.100\.\d+/24' location1,location1-lan
+  fi
+
+  if wlan
+    testnm 'wlan0,GENERAL\.CONNECTION:location1-wlan' location1,location1-wlan
+    testnm 'wlan0,GENERAL\.CONNECTION:location2-wlan' location2,location2-wlan
+  fi
+
+
+# .. envvar:: whereami_action_rules
+#
+# The action configuration for ``whereami``.
+# Check :manpage:`whereami.conf(5)` for details.
+whereami_action_rules: |
+  # #
+  # # Sample configuration file for 'whereami' copyright Andrew McMillan, 1999
+  # #
+
+  # # Regardless, we always rotate the netscape preferences file.
+  # =any savelog -p /home/andrew/.netscape/preferences.js
+  # =any cat /home/andrew/.netscape/preferences.js.0 >>/home/andrew/.netscape/preferences.js
+
+  # # By default just send mail directly across the internet
+  # =any MAIL_RELAY="none"
+  # # By default send all mail via our main mailserver, since we do TLS+SASL there
+  # =any MAIL_RELAY="smtp.mydomain.com"
+  # By default we assume that the detection configured routing
+  =any GATEWAY=""
+  # By default we assume we have an unfiltered internet connection
+  =any PROXY="none"
+  =any NTPDAEMON=/etc/init.d/ntp-server
+  =any NTPSERVER=ntp
+
+
+  ## You will need to install the "resolvconf" package for these to
+  ## work, and edit the following couple of stanzas to the right
+  ## interface names.
+
+  ## This only happens if we are not at a WLAN
+  #!wlan ifconfig ath0 down
+  #!wlan resolvconf -d ath0
+
+  ## This only happens if we are not at a LAN
+  #!lan ifconfig eth0 down
+  #!lan resolvconf -d eth0
+
+
+  # # Catalyst
+  # +catalyst bind-forwarders 192.168.3.10
+  # +catalyst setresolver search laptop.cat-it.co.nz wgtn.cat-it.co.nz catalyst.net.nz nameserver 127.0.0.1
+  # +catalyst mount /plato/general
+  # +catalyst mount /home/andrew/plato
+  # =catalyst export PROXY="192.168.3.10 8080"
+  # =catalyst export NTPSERVER="plato"
+  # =catalyst export GATEWAY="192.168.3.1"
+
+
+  # # At home
+  # =home export PROXY="172.16.85.3 3128"
+  # =home export NTPSERVER="adorno"
+  # =home setresolver search localhost mcmillan.net.nz nameserver 172.16.85.2
+  # +home smbmount //hegel/c /hegel/c -I 172.16.85.10 -N >>/dev/null
+  # -home umount /hegel/* >>/dev/null
+
+  # # AmTrust in Auckland
+  # +amtrust bind-forwarders 192.168.5.1
+  # +amtrust setresolver search laptop.cat-it.co.nz akld.capit.co.nz catalyst.net.nz nameserver 127.0.0.1
+
+  # # AGP in Sydney
+  # +agp bind-forwarders 10.3.0.10
+  # +agp setresolver search laptop.cat-it.co.nz agp.com.au catalyst.net.nz nameserver 127.0.0.1
+
+  # # When we're in Sydney we want to change to the correct timezone, and
+  # # then change it back when we leave.
+  # +agp rm /etc/localtime
+  # +agp ln -s /usr/share/zoneinfo/Australia/Sydney /etc/localtime
+  # -agp rm /etc/localtime
+  # -agp ln -s /usr/share/zoneinfo/Pacific/Auckland /etc/localtime
+
+
+  # # TTP In Auckland
+  # =ttpak export MAIL_RELAY=10.2.0.59
+  # =ttpak export PROXY="10.2.0.1 3128"
+
+  # # First we mount the drives if we are in the docking station.  These always
+  # # get unmounted cleanly because we have to shut down to remove the laptop.
+  # =catalyst if ( grep "^docked" /var/lib/whereami/iam >/dev/null ) then
+  # =catalyst   mount /dev/hde1 /dos/f -t vfat
+  # =catalyst   mount /dev/hde2 /dock -t ext2
+  # =catalyst   /root/bin/bkup2dock &
+  # =catalyst fi
+
+  # =docked mount /dos/f; mount /dock
+  # =docked /root/bin/bkup2dock &
+
+  # =undocked killall dhclient 2>/dev/null;  killall dhclient3 2>/dev/null
+  # =undocked MAIL_RELAY=queue
+
+  # # So we can override this for any configuration
+  # =any setmailrelay ${MAIL_RELAY}
+  # =any setoops ${PROXY}
+
+  # # Set any gateway that got called for in passing
+  # =any [ -n "${GATEWAY}" ] && route add default gw ${GATEWAY} 2>/dev/null
+
+  # # Use any reasonable NTP server
+  # =undocked if /bin/false ; then
+  # =any ${NTPDAEMON} stop
+  # =any ntpdate ${NTPSERVER}
+  # =any ${NTPDAEMON} start
+  # =undocked fi
+
+  # =any /usr/local/sbin/local-firewalling start
+  # =any sync
+  # =any ( /etc/init.d/cupsys stop; sleep 10; /etc/init.d/cupsys start ) >/dev/null 2>&1 &
