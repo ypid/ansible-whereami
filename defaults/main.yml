@@ -5,6 +5,8 @@
 # .. contents:: Sections
 #    :local:
 #
+# .. Installation options (((
+#
 # ------------------------
 #   Installation options
 # ------------------------
@@ -29,15 +31,31 @@ whereami_base_packages:
 #   address or other flags using regular expressions on the output of the
 #   ``ip`` command.
 #
-# ``testnm``
-#   Test against information network-manager can provide.
+# ``testnm-device``
+#   Test against device network-manager can provide.
+#
+#   Check if wlan0 is currently connected to "connection_name":
+#
+#   .. code:: shell
+#
+#      ./testnm-device "wlan0,GENERAL\.CONNECTION:connection_name"
+#
+# ``testnm-connection``
+#   Test against connection information network-manager can provide.
+#
+#   Check if given connection UUID is active:
+#
+#   .. code:: shell
+#
+#      ./testnm-connection 'tun\d+,c910b0bc-5733-4093-812e-5f2a2d806314'
 #
 # ``testneighbour``
 #   Test for known hosts in the neighbour table of the kernel.
 #
 whereami_install_additional_scripts:
   - 'testip'
-  - 'testnm'
+  - 'testnm-device'
+  - 'testnm-connection'
   - 'testneighbour'
 
 
@@ -52,6 +70,25 @@ whereami_install_additional_scripts:
 whereami_install_patches: False
 
 
+# .. envvar:: whereami_install_to_if_up_d
+#
+# Install the hook script also to :file:`/etc/network/if-up.d/`.
+# This is needed when you use network manager because it does not run scripts
+# on ``if-pre-up.d``.
+whereami_install_to_if_up_d: False
+
+
+# .. envvar:: whereami_install_to_if_down_d
+#
+# Install the hook script also to :file:`/etc/network/if-down.d/` to run
+# ``whereami`` also when a device goes down.
+whereami_install_to_if_down_d: False
+
+# .. )))
+
+
+# .. Configuration (((
+#
 # -----------------
 #   Configuration
 # -----------------
@@ -212,3 +249,4 @@ whereami_action_rules: |
   # =any /usr/local/sbin/local-firewalling start
   # =any sync
   # =any ( /etc/init.d/cupsys stop; sleep 10; /etc/init.d/cupsys start ) >/dev/null 2>&1 &
+# .. )))

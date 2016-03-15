@@ -19,7 +19,7 @@ To configure ``whereami`` on hosts you can put them into the
 Example playbook
 ----------------
 
-Here's an example playbook that can be used to manage cryptsetup::
+Here's an example playbook that can be used to manage whereami::
 
     ---
     - name: Configure whereami

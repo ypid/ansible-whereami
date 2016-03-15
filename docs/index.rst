@@ -1,7 +1,7 @@
-.. _debops.cryptsetup:
+.. _debops.whereami:
 
-Ansible role: debops.cryptsetup
-===============================
+Ansible role: debops.whereami
+=============================
 
 .. toctree::
    :maxdepth: 2

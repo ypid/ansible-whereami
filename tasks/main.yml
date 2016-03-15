@@ -39,6 +39,39 @@
   when: whereami_install_patches
   tags: [ 'role::whereami:install' ]
 
+  ## http://stackoverflow.com/a/28888474
+- name: Test if Ansible is running in check mode
+  command: /bin/true
+  changed_when: False
+  register: whereami_register_check_mode
+
+- name: Save fact if Ansible is running in check mode in variable
+  set_fact: check_mode={{ whereami_register_check_mode|skipped }}
+
+- name: Install hook script to /etc/network/if-up.d/
+  file:
+    src: '/etc/network/if-pre-up.d/whereami'
+    path: '/etc/network/if-up.d/whereami'
+    state: 'link'
+    force: '{{ check_mode|d() | bool }}'
+    mode: '0755'
+    owner: 'root'
+    group: 'root'
+  when: whereami_install_to_if_up_d
+  tags: [ 'role::whereami:install' ]
+
+- name: Install hook script to /etc/network/if-up.d/
+  file:
+    src: '/etc/network/if-pre-up.d/whereami'
+    path: '/etc/network/if-down.d/whereami'
+    state: 'link'
+    force: '{{ check_mode|d() | bool }}'
+    mode: '0755'
+    owner: 'root'
+    group: 'root'
+  when: whereami_install_to_if_down_d
+  tags: [ 'role::whereami:install' ]
+
 - name: Configure detection rules
   template:
     src: 'etc/whereami/detect.conf.j2'

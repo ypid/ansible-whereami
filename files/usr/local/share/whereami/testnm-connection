@@ -15,11 +15,10 @@
 ## You should have received a copy of the GNU Affero General Public License
 ## along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ##
-## Test against information network-manager can provide.
+## Test against connection information network-manager can provide.
 ##
-## Usage example ./testnm "wlan0,GENERAL\.CONNECTION:$CONNECTION_NAME"
-## ./testnm 'wlan0,IP4.DNS\[1\]:192\.0\.2\.2'
-## ./testnm 'wlan0,IP4.DOMAIN\[1\]:your-domain.tld'
+## Check if given connection UUID is active: ./testnm-connection 'tun\d+,c910b0bc-5733-4093-812e-5f2a2d806314'
+## ./testnm-connection 'all,c910b0bc-5733-4093-812e-5f2a2d806314'
 
 # Turn on execution tracing, for debugging...
 [ "$DEBUGWHEREAMI" = "1" ] && set -o xtrace
@@ -46,6 +45,6 @@ then
     INTERFACE=''
 fi
 
-nmcli --terse device show $INTERFACE | grep --quiet --perl-regexp "$SEARCH_PATTERN" && exit 0
+nmcli connection show --active | grep --perl-regexp "$INTERFACE\s+$" | grep --quiet --perl-regexp "$SEARCH_PATTERN" && exit 0
 
 exit 1
