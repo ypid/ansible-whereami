@@ -49,4 +49,4 @@ Available role tags:
   Tasks related to the installation of :program:`whereami`.
 
 ``role::whereami:config``
-  Tasks related to the configuration  of :program:`whereami`.
+  Tasks related to the configuration of :program:`whereami`.

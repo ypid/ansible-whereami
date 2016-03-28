@@ -118,8 +118,8 @@ whereami_location_detection_rules: |
   # It is a good idea to default to somewhere...
   default undocked
 
-  testip eth0,LOWER_UP  lan
-  testip wlan0,LOWER_UP wlan
+  always testip eth0,LOWER_UP  lan
+  always testip wlan0,LOWER_UP wlan
 
   # Uncomment this for exhaustive debugging output
   # set DEBUGWHEREAMI 1
@@ -137,8 +137,8 @@ whereami_location_detection_rules: |
   fi
 
   if wlan
-    testnm 'wlan0,GENERAL\.CONNECTION:location1-wlan' location1,location1-wlan
-    testnm 'wlan0,GENERAL\.CONNECTION:location2-wlan' location2,location2-wlan
+    testnm-connection 'wlan0,GENERAL\.CONNECTION:location1-wlan' location1,location1-wlan
+    testnm-connection 'wlan0,GENERAL\.CONNECTION:location2-wlan' location2,location2-wlan
   fi
 
 
