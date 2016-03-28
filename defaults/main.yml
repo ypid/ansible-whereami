@@ -78,14 +78,13 @@ whereami_install_patches: False
 whereami_install_to_if_up_d: False
 
 
-# .. envvar:: whereami_install_to_if_down_d
+# .. envvar:: whereami_install_to_if_post_down_d
 #
-# Install the hook script also to :file:`/etc/network/if-down.d/` to run
+# Install the hook script also to :file:`/etc/network/if-post-down.d/` to run
 # ``whereami`` also when a device goes down.
-whereami_install_to_if_down_d: False
+whereami_install_to_if_post_down_d: False
 
 # .. )))
-
 
 # .. Configuration (((
 #

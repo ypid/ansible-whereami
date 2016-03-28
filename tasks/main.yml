@@ -48,29 +48,34 @@
 - name: Save fact if Ansible is running in check mode in variable
   set_fact: check_mode={{ whereami_register_check_mode|skipped }}
 
-- name: Install hook script to /etc/network/if-up.d/
+- name: Install hook script to /etc/network/if-*.d/
   file:
     src: '/etc/network/if-pre-up.d/whereami'
-    path: '/etc/network/if-up.d/whereami'
+    path: '{{ item.path }}'
     state: 'link'
     force: '{{ check_mode|d() | bool }}'
     mode: '0755'
     owner: 'root'
     group: 'root'
-  when: whereami_install_to_if_up_d
+  when: item.when|d(True) | bool
   tags: [ 'role::whereami:install' ]
+  with_items:
+    - path: '/etc/network/if-up.d/whereami'
+      when: '{{ whereami_install_to_if_up_d | bool }}'
+    - path: '/etc/network/if-post-down.d/whereami'
+      when: '{{ whereami_install_to_if_post_down_d | bool }}'
 
-- name: Install hook script to /etc/network/if-up.d/
+- name: Remove hook script from /etc/network/if-*.d/
   file:
-    src: '/etc/network/if-pre-up.d/whereami'
-    path: '/etc/network/if-down.d/whereami'
-    state: 'link'
-    force: '{{ check_mode|d() | bool }}'
-    mode: '0755'
-    owner: 'root'
-    group: 'root'
-  when: whereami_install_to_if_down_d
+    path: '{{ item.path }}'
+    state: 'absent'
+  when: not (item.when|d(True) | bool)
   tags: [ 'role::whereami:install' ]
+  with_items:
+    - path: '/etc/network/if-up.d/whereami'
+      when: '{{ whereami_install_to_if_up_d | bool }}'
+    - path: '/etc/network/if-post-down.d/whereami'
+      when: '{{ whereami_install_to_if_post_down_d | bool }}'
 
 - name: Configure detection rules
   template:
