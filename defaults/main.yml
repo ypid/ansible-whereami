@@ -29,7 +29,7 @@ whereami_base_packages:
 # ``testip``
 #   Test if a certain network interface has been assigned a certain network
 #   address or other flags using regular expressions on the output of the
-#   ``ip`` command.
+#   :command:`ip` command.
 #
 # ``testnm-device``
 #   Test against device network-manager can provide.
@@ -61,7 +61,7 @@ whereami_install_additional_scripts:
 
 # .. envvar:: whereami_install_patches
 #
-# Install a bug fixed version of ``whereami`` instead of the upstream version.
+# Install a bug fixed version of :program:`whereami` instead of the upstream version.
 #
 # Fixed:
 #
@@ -81,7 +81,7 @@ whereami_install_to_if_up_d: False
 # .. envvar:: whereami_install_to_if_post_down_d
 #
 # Install the hook script also to :file:`/etc/network/if-post-down.d/` to run
-# ``whereami`` also when a device goes down.
+# :program:`whereami` also when a device goes down.
 whereami_install_to_if_post_down_d: False
 
 # .. )))
@@ -100,7 +100,7 @@ whereami_configuration_mode: '0644'
 
 # .. envvar:: whereami_location_detection_rules
 #
-# The detection configuration for ``whereami``.
+# The detection configuration for :program:`whereami`.
 #
 # This file describes unique features of various environments you connect
 # to and associates them with those locations.
@@ -144,7 +144,7 @@ whereami_location_detection_rules: |
 
 # .. envvar:: whereami_action_rules
 #
-# The action configuration for ``whereami``.
+# The action configuration for :program:`whereami`.
 # Check :manpage:`whereami.conf(5)` for details.
 whereami_action_rules: |
   # #

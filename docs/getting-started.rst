@@ -8,7 +8,7 @@ Getting started
 Example inventory
 -----------------
 
-To configure ``whereami`` on hosts you can put them into the
+To configure :program:`whereami` on hosts you can put them into the
 ``ypid_service_whereami`` Ansible inventory group:
 
 .. code:: ini
@@ -46,7 +46,7 @@ Available role tags:
   tasks as well as role dependencies.
 
 ``role::whereami:install``
-  Tasks related to the installation of ``whereami``.
+  Tasks related to the installation of :program:`whereami`.
 
 ``role::whereami:config``
-  Tasks related to the configuration  of ``whereami``.
+  Tasks related to the configuration  of :program:`whereami`.
