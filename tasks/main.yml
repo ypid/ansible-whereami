@@ -6,7 +6,7 @@
     state: 'present'
     install_recommends: False
   with_flattened:
-    - '{{ whereami_base_packages }}'
+    - '{{ whereami__base_packages }}'
   tags: [ 'role::whereami:pkgs', 'role::whereami:install' ]
 
 - name: Create directory for additional scripts
@@ -16,7 +16,7 @@
     owner: 'root'
     group: 'root'
     mode: '0755'
-  when: (whereami_install_additional_scripts|d([]))
+  when: (whereami__install_additional_scripts|d([]))
   tags: [ 'role::whereami:install' ]
 
 - name: Install additional scripts for whereami
@@ -26,7 +26,7 @@
     mode: '0754'
     owner: 'root'
     group: 'root'
-  with_flattened: '{{ whereami_install_additional_scripts }}'
+  with_flattened: '{{ whereami__install_additional_scripts }}'
   tags: [ 'role::whereami:install' ]
 
 - name: Install patched whereami
@@ -36,17 +36,17 @@
     mode: '0755'
     owner: 'root'
     group: 'root'
-  when: whereami_install_patches
+  when: whereami__install_patches
   tags: [ 'role::whereami:install' ]
 
   ## https://stackoverflow.com/a/28888474
 - name: Test if Ansible is running in check mode
   command: /bin/true
   changed_when: False
-  register: whereami_register_check_mode
+  register: whereami__register_check_mode
 
 - name: Save fact if Ansible is running in check mode in variable
-  set_fact: check_mode={{ whereami_register_check_mode|skipped }}
+  set_fact: check_mode={{ whereami__register_check_mode|skipped }}
 
 - name: Install hook script to /etc/network/if-*.d/
   file:
@@ -61,9 +61,9 @@
   tags: [ 'role::whereami:install' ]
   with_items:
     - path: '/etc/network/if-up.d/whereami'
-      when: '{{ whereami_install_to_if_up_d | bool }}'
+      when: '{{ whereami__install_to_if_up_d | bool }}'
     - path: '/etc/network/if-post-down.d/whereami'
-      when: '{{ whereami_install_to_if_post_down_d | bool }}'
+      when: '{{ whereami__install_to_if_post_down_d | bool }}'
 
 - name: Remove hook script from /etc/network/if-*.d/
   file:
@@ -73,15 +73,15 @@
   tags: [ 'role::whereami:install' ]
   with_items:
     - path: '/etc/network/if-up.d/whereami'
-      when: '{{ whereami_install_to_if_up_d | bool }}'
+      when: '{{ whereami__install_to_if_up_d | bool }}'
     - path: '/etc/network/if-post-down.d/whereami'
-      when: '{{ whereami_install_to_if_post_down_d | bool }}'
+      when: '{{ whereami__install_to_if_post_down_d | bool }}'
 
 - name: Configure detection rules
   template:
     src: 'etc/whereami/detect.conf.j2'
     dest: '/etc/whereami/detect.conf'
-    mode: '{{ whereami_configuration_mode }}'
+    mode: '{{ whereami__configuration_mode }}'
     owner: 'root'
     group: 'root'
   tags: [ 'role::whereami:config' ]
@@ -90,7 +90,7 @@
   template:
     src: 'etc/whereami/whereami.conf.j2'
     dest: '/etc/whereami/whereami.conf'
-    mode: '{{ whereami_configuration_mode }}'
+    mode: '{{ whereami__configuration_mode }}'
     owner: 'root'
     group: 'root'
   tags: [ 'role::whereami:config' ]
