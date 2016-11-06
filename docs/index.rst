@@ -1,7 +1,7 @@
-.. _debops.whereami:
+.. _ypid.whereami:
 
-Ansible role: debops.whereami
-=============================
+Ansible role: ypid.whereami
+===========================
 
 .. toctree::
    :maxdepth: 2

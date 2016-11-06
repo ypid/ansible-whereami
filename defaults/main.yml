@@ -1,24 +1,26 @@
 ---
-# Default variables
-# =================
+# .. vim: foldmarker=[[[,]]]:foldmethod=marker
+
+# ypid.whereami default variables [[[
+# ===================================
 
 # .. contents:: Sections
 #    :local:
 #
-# .. Installation options (((
-#
-# ------------------------
-#   Installation options
+# .. include:: includes/all.rst
+
+
+# Installation options [[[
 # ------------------------
 
-# .. envvar:: whereami_base_packages
+# .. envvar:: whereami_base_packages [[[
 #
 # List of base packages to install.
 whereami_base_packages:
   - 'whereami'
 
-
-# .. envvar:: whereami_install_additional_scripts
+                                                                   # ]]]
+# .. envvar:: whereami_install_additional_scripts [[[
 #
 # List of additional scripts and tests for whereami to install. Those scripts
 # come with this role as they have not yet reached upstream or did not yet have
@@ -58,8 +60,8 @@ whereami_install_additional_scripts:
   - 'testnm-connection'
   - 'testneighbour'
 
-
-# .. envvar:: whereami_install_patches
+                                                                   # ]]]
+# .. envvar:: whereami_install_patches [[[
 #
 # Install a bug fixed version of :program:`whereami` instead of the upstream version.
 #
@@ -69,36 +71,32 @@ whereami_install_additional_scripts:
 #
 whereami_install_patches: False
 
-
-# .. envvar:: whereami_install_to_if_up_d
+                                                                   # ]]]
+# .. envvar:: whereami_install_to_if_up_d [[[
 #
 # Install the hook script also to :file:`/etc/network/if-up.d/`.
 # This is needed when you use network manager because it does not run scripts
 # on ``if-pre-up.d``.
 whereami_install_to_if_up_d: False
 
-
-# .. envvar:: whereami_install_to_if_post_down_d
+                                                                   # ]]]
+# .. envvar:: whereami_install_to_if_post_down_d [[[
 #
 # Install the hook script also to :file:`/etc/network/if-post-down.d/` to run
 # :program:`whereami` also when a device goes down.
 whereami_install_to_if_post_down_d: False
-
-# .. )))
-
-# .. Configuration (((
-#
-# -----------------
-#   Configuration
+                                                                   # ]]]
+                                                                   # ]]]
+# Configuration [[[
 # -----------------
 
-# .. envvar:: whereami_configuration_mode
+# .. envvar:: whereami_configuration_mode [[[
 #
 # UNIX permissions for configuration files.
 whereami_configuration_mode: '0644'
 
-
-# .. envvar:: whereami_location_detection_rules
+                                                                   # ]]]
+# .. envvar:: whereami_location_detection_rules [[[
 #
 # The detection configuration for :program:`whereami`.
 #
@@ -141,8 +139,8 @@ whereami_location_detection_rules: |
     testnm-connection 'wlan0,GENERAL\.CONNECTION:location2-wlan' location2,location2-wlan
   fi
 
-
-# .. envvar:: whereami_action_rules
+                                                                   # ]]]
+# .. envvar:: whereami_action_rules [[[
 #
 # The action configuration for :program:`whereami`.
 # Check :manpage:`whereami.conf(5)` for details.
@@ -248,4 +246,7 @@ whereami_action_rules: |
   # =any /usr/local/sbin/local-firewalling start
   # =any sync
   # =any ( /etc/init.d/cupsys stop; sleep 10; /etc/init.d/cupsys start ) >/dev/null 2>&1 &
-# .. )))
+
+# ]]]
+# ]]]
+# ]]]

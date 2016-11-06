@@ -7,7 +7,7 @@
     install_recommends: False
   with_flattened:
     - '{{ whereami_base_packages }}'
-  tags: [ 'role::whereami:install' ]
+  tags: [ 'role::whereami:pkgs', 'role::whereami:install' ]
 
 - name: Create directory for additional scripts
   file:
@@ -39,7 +39,7 @@
   when: whereami_install_patches
   tags: [ 'role::whereami:install' ]
 
-  ## http://stackoverflow.com/a/28888474
+  ## https://stackoverflow.com/a/28888474
 - name: Test if Ansible is running in check mode
   command: /bin/true
   changed_when: False
