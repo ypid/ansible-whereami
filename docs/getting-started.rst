@@ -1,6 +1,8 @@
 Getting started
 ===============
 
+.. include:: includes/all.rst
+
 .. contents::
    :local:
 
@@ -19,17 +21,16 @@ To configure :program:`whereami` on hosts you can put them into the
 Example playbook
 ----------------
 
-Here's an example playbook that can be used to manage whereami::
+Here's an example playbook that uses the ``ypid.whereami`` role:
 
-    ---
-    - name: Configure whereami
-      hosts: 'ypid_service_whereami'
-      become: True
+.. literalinclude:: playbooks/whereami.yml
+   :language: yaml
 
-      roles:
-
-        - role: ypid.whereami
-          tags: [ 'role::whereami' ]
+The playbooks is shipped with this role under
+:file:`docs/playbooks/whereami.yml` from which you can symlink it to your
+playbook directory.
+In case you use multiple roles maintained by ypid_, consider
+using the `ypid-ansible-common`_.
 
 Ansible tags
 ------------
@@ -45,8 +46,12 @@ Available role tags:
   Main role tag, should be used in the playbook to execute all of the role
   tasks as well as role dependencies.
 
+``role::whereami:pkgs``
+  Tasks related to system package management like installing or
+  removing packages.
+
 ``role::whereami:install``
-  Tasks related to the installation of :program:`whereami`.
+  Tasks related to the installation and patching of :program:`whereami`.
 
 ``role::whereami:config``
   Tasks related to the configuration of :program:`whereami`.

@@ -1,22 +1,24 @@
 ---
 
 ansigenome_info:
+  galaxy_url: 'https://galaxy.ansible.com/ypid/whereami'
   github_url: 'https://github.com/ypid/ansible-whereami'
   git_branch: 'master'
-  galaxy_id: ''
 
-  travis: False
+  travis: True
 
-  license_url: 'https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)'
+  license_url: 'https://tldrlegal.com/license/gnu-affero-general-public-license-v3-%28agpl-3.0%29'
 
   authors:
     - name:  'Robin Schneider'
-      url: 'http://ypid.de/'
+      url: 'https://me.ypid.de/'
       email: 'ypid@riseup.net'
-      twitter: 'ypid'
       github: 'ypid'
 
   synopsis: |
     This role setups up and configures [`whereami`][whereami].
+
+    `whereami` allows to non-iteratively ascertain the location of the computer
+    and reconfigure the system appropriately.
 
     [whereami]: https://packages.debian.org/search?keywords=whereami
